@@ -1,0 +1,7 @@
+2025-07-05 23:33:17,662 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2025-07-05 23:33:17,664 - mcp.server.lowlevel.server - INFO - Processing request of type ListResourcesRequest
+2025-07-05 23:33:17,665 - mcp.server.lowlevel.server - INFO - Processing request of type ListResourceTemplatesRequest
+2025-07-05 23:35:46,985 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2025-07-05 23:35:46,986 - root - INFO - --- Starting get_forecast for lat=40.7128, lon=-74.006 ---
+2025-07-05 23:35:51,586 - httpx - INFO - HTTP Request: GET https://api.weather.gov/points/40.7128,-74.006 "HTTP/1.1 200 OK"
+2025-07-05 23:35:54,554 - httpx - INFO - HTTP Request: GET https://api.weather.gov/gridpoints/OKX/33,35/forecast "HTTP/1.1 200 OK"
