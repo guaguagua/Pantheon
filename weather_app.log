@@ -26,3 +26,14 @@
 2025-07-06 22:36:09,917 - root - INFO - --- Starting get_forecast for lat=42.6, lon=-73.7 ---
 2025-07-06 22:36:12,658 - httpx - INFO - HTTP Request: GET https://api.weather.gov/points/42.6,-73.7 "HTTP/1.1 200 OK"
 2025-07-06 22:36:15,893 - httpx - INFO - HTTP Request: GET https://api.weather.gov/gridpoints/ALY/74,61/forecast "HTTP/1.1 200 OK"
+2025-07-06 23:08:17,409 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2025-07-06 23:09:21,075 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2025-07-06 23:09:21,075 - root - INFO - --- Starting get_alerts NY ---
+2025-07-06 23:09:25,752 - httpx - INFO - HTTP Request: GET https://api.weather.gov/alerts/active/area/NY "HTTP/1.1 200 OK"
+2025-07-06 23:09:58,135 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2025-07-06 23:09:58,136 - root - INFO - --- Starting get_forecast for lat=42.6, lon=-73.7 ---
+2025-07-06 23:10:03,489 - httpx - INFO - HTTP Request: GET https://api.weather.gov/points/42.6,-73.7 "HTTP/1.1 200 OK"
+2025-07-06 23:10:06,494 - httpx - INFO - HTTP Request: GET https://api.weather.gov/gridpoints/ALY/74,61/forecast "HTTP/1.1 200 OK"
+2025-07-06 23:10:50,520 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2025-07-06 23:10:50,520 - root - INFO - --- Starting get_forecast for lat=32.0, lon=-72.0 ---
+2025-07-06 23:10:54,320 - httpx - INFO - HTTP Request: GET https://api.weather.gov/points/32.0,-72.0 "HTTP/1.1 404 Not Found"

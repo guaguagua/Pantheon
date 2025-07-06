@@ -1,9 +1,8 @@
-
 import asyncio
 import sys
 import os
 import json
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from contextlib import AsyncExitStack
 from pathlib import Path
 
@@ -26,7 +25,7 @@ class ServerConnection:
 class MCPManager:
     """
     一个可以管理多个 MCP 服务器连接的管理器。
-    它负责连接、路由工具调用和生命周期管理。
+    它负责连接、路由工具调用、管理对话历史和生命周期。
     """
     def __init__(self):
         """
@@ -41,6 +40,20 @@ class MCPManager:
         )
         # 用于生成唯一工具名称的分隔符
         self.TOOL_NAME_SEPARATOR = "__"
+        # 对话历史记录
+        self.messages: List[Dict[str, Any]] = []
+        self._initialize_history()
+
+    def _initialize_history(self):
+        """设置或重置对话历史记录的初始状态。"""
+        self.messages = [
+            {"role": "system", "content": "你是一个有用的助手。你可以使用提供的工具来回答问题。"}
+        ]
+        print("\n[对话历史已重置]")
+
+    def clear_history(self):
+        """外部调用的方法，用于清空对话历史。"""
+        self._initialize_history()
 
     def _create_server_id(self, script_path: str) -> str:
         """根据脚本路径创建一个简短、唯一的服务器ID。"""
@@ -72,7 +85,6 @@ class MCPManager:
             env=None
         )
         
-        # 每个连接都需要自己的 AsyncExitStack 来独立管理其生命周期
         exit_stack = AsyncExitStack()
         try:
             stdio_transport = await exit_stack.enter_async_context(stdio_client(server_params))
@@ -80,29 +92,24 @@ class MCPManager:
             session = await exit_stack.enter_async_context(ClientSession(stdio, write))
 
             await session.initialize()
-
             response = await session.list_tools()
             tools = response.tools
             
-            # 存储连接信息
             self.connections[server_id] = ServerConnection(session, exit_stack, tools)
             print(f"✅ 成功连接到 '{server_id}'，可用工具: {[tool.name for tool in tools]}")
 
         except Exception as e:
             print(f"❌ 连接到 '{server_id}' 失败: {e}")
-            # 如果连接失败，确保清理已创建的资源
             await exit_stack.aclose()
             raise
 
     def _get_all_tools_for_llm(self) -> list:
         """
-        整合所有已连接服务器的工具，并为它们创建唯一的名称，
-        以便语言模型可以区分它们。
+        整合所有已连接服务器的工具，并为它们创建唯一的名称。
         """
         all_tools = []
         for server_id, conn in self.connections.items():
             for tool in conn.tools:
-                # 格式: {server_id}__{tool_name}
                 unique_tool_name = f"{server_id}{self.TOOL_NAME_SEPARATOR}{tool.name}"
                 all_tools.append({
                     "type": "function",
@@ -116,29 +123,22 @@ class MCPManager:
 
     async def process_query(self, query: str) -> str:
         """
-        处理用户查询。它会将所有可用工具发送给语言模型，
-        并根据模型的选择将工具调用路由到正确的服务器。
-
-        Args:
-            query: 用户的查询。
-
-        Returns:
-            语言模型的最终响应。
+        处理用户查询，维护对话历史。
         """
         if not self.connections:
             return "错误：未连接到任何服务器。请先连接服务器。"
 
-        messages = [{"role": "user", "content": query}]
+        # 将当前用户查询添加到历史记录中
+        self.messages.append({"role": "user", "content": query})
         available_tools = self._get_all_tools_for_llm()
 
-        # 第一次调用语言模型
         completion = self.client.chat.completions.create(
             extra_headers={
                 "HTTP-Referer": os.getenv("YOUR_SITE_URL", ""),
                 "X-Title": os.getenv("YOUR_SITE_NAME", ""),
             },
             model="anthropic/claude-3.5-sonnet",
-            messages=messages,
+            messages=self.messages, # 使用完整的历史记录
             tools=available_tools,
             tool_choice="auto"
         )
@@ -146,16 +146,16 @@ class MCPManager:
         response_message = completion.choices[0].message
         final_text = []
 
+        # 将模型的响应（包括思考过程和工具调用请求）添加到历史记录
+        self.messages.append(response_message)
+
         if response_message.content:
             final_text.append(response_message.content)
 
-        # 处理工具调用（如果有）
         if response_message.tool_calls:
-            messages.append(response_message)
             for tool_call in response_message.tool_calls:
                 unique_function_name = tool_call.function.name
                 
-                # 解析唯一的工具名称以找到 server_id 和原始工具名称
                 try:
                     server_id, original_function_name = unique_function_name.split(self.TOOL_NAME_SEPARATOR, 1)
                 except ValueError:
@@ -171,15 +171,13 @@ class MCPManager:
                 print(f"▶️ 正在路由调用到服务器 '{server_id}' -> 工具 '{original_function_name}'...")
                 final_text.append(f"[调用服务器 '{server_id}' 的工具 {original_function_name}，参数: {function_args_str}]")
 
-                # 执行工具调用
                 try:
-                    # 使用 json.loads 而不是 eval，更安全
                     function_args = json.loads(function_args_str)
                     target_session = self.connections[server_id].session
                     result = await target_session.call_tool(original_function_name, function_args)
                     
-                    # 将工具结果附加到消息历史中
-                    messages.append({
+                    # 将工具执行结果添加到历史记录
+                    self.messages.append({
                         "tool_call_id": tool_call.id,
                         "role": "tool",
                         "name": unique_function_name,
@@ -188,22 +186,24 @@ class MCPManager:
                 except Exception as e:
                     error_content = f"执行工具时出错: {e}"
                     print(f"❌ {error_content}")
-                    messages.append({
+                    self.messages.append({
                         "tool_call_id": tool_call.id,
                         "role": "tool",
                         "name": unique_function_name,
                         "content": error_content,
                     })
 
-
-            # 第二次调用语言模型，附带工具调用的结果
+            # 第二次调用语言模型，此时 self.messages 已包含工具结果
             second_completion = self.client.chat.completions.create(
                 model="anthropic/claude-3.5-sonnet",
-                messages=messages,
+                messages=self.messages,
             )
-            final_text.append(second_completion.choices[0].message.content)
+            final_response_message = second_completion.choices[0].message
+            # 将最终的文本响应添加到历史记录和输出中
+            self.messages.append(final_response_message)
+            final_text.append(final_response_message.content)
 
-        return "\n".join(final_text)
+        return "\n".join(filter(None, final_text))
 
     async def cleanup(self):
         """
@@ -224,7 +224,7 @@ async def chat_loop(manager: MCPManager):
     运行主交互式聊天循环。
     """
     print("\n多服务器 MCP 客户端已启动！")
-    print("输入您的查询，或输入 'quit' 退出。")
+    print("输入您的查询，或输入 '/clear' 重置对话，或输入 'quit' 退出。")
 
     while True:
         try:
@@ -232,6 +232,10 @@ async def chat_loop(manager: MCPManager):
 
             if query.lower() == 'quit':
                 break
+            
+            if query.lower() == '/clear':
+                manager.clear_history()
+                continue
 
             response = await manager.process_query(query)
             print("\n" + response)
@@ -254,7 +258,6 @@ async def main():
     manager = MCPManager()
     server_scripts = sys.argv[1:]
     
-    # 并发连接到所有指定的服务器
     connect_tasks = [manager.connect_to_server(script) for script in server_scripts]
     await asyncio.gather(*connect_tasks, return_exceptions=True)
 
@@ -269,3 +272,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
