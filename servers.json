@@ -1,0 +1,23 @@
+{
+  "mcpServers": {
+    "filesystem_server": {
+      "disabled": false,
+      "timeout": 60,
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "."
+      ],
+      "transportType": "stdio"
+    },
+    "weather_server": {
+      "disabled": false,
+      "command": "python",
+      "args": [
+        "./servers/weather/server.py"
+      ]
+    }
+  }
+}
+

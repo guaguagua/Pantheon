@@ -15,7 +15,6 @@ from dotenv import load_dotenv
 load_dotenv()  # 从 .env 文件加载环境变量
 
 # --- 数据结构 ---
-# 为每个连接创建一个简单的数据容器，方便管理
 class ServerConnection:
     def __init__(self, session: ClientSession, exit_stack: AsyncExitStack, tools: list):
         self.session = session
@@ -28,19 +27,12 @@ class MCPManager:
     它负责连接、路由工具调用、管理对话历史和生命周期。
     """
     def __init__(self):
-        """
-        初始化 MCPManager。
-        """
-        # self.connections 字典将服务器ID映射到 ServerConnection 对象
         self.connections: Dict[str, ServerConnection] = {}
-        # OpenAI 客户端可以被所有会话共享
         self.client = OpenAI(
             base_url="https://openrouter.ai/api/v1",
             api_key=os.getenv("OPENROUTER_API_KEY"),
         )
-        # 用于生成唯一工具名称的分隔符
         self.TOOL_NAME_SEPARATOR = "__"
-        # 对话历史记录
         self.messages: List[Dict[str, Any]] = []
         self._initialize_history()
 
@@ -55,33 +47,32 @@ class MCPManager:
         """外部调用的方法，用于清空对话历史。"""
         self._initialize_history()
 
-    def _create_server_id(self, script_path: str) -> str:
-        """根据脚本路径创建一个简短、唯一的服务器ID。"""
-        return Path(script_path).stem.replace(" ", "_")
-
-    async def connect_to_server(self, server_script_path: str):
+    async def connect_to_server(self, server_id: str, config: Dict[str, Any]):
         """
-        连接到一个新的 MCP 服务器并存储其会话。
+        根据提供的配置连接到一个新的 MCP 服务器。
 
         Args:
-            server_script_path: 服务器脚本的路径 (.py or .js)。
+            server_id (str): 服务器的唯一标识符 (来自 JSON 的 key)。
+            config (Dict[str, Any]): 该服务器的配置对象 (来自 JSON 的 value)。
         """
-        server_id = self._create_server_id(server_script_path)
         if server_id in self.connections:
             print(f"警告：已连接到服务器 '{server_id}'。跳过重复连接。")
             return
 
-        print(f"正在连接到服务器 '{server_id}' (来自 {server_script_path})...")
+        # 检查 "command" 和 "args" 是否存在
+        command = config.get("command")
+        args = config.get("args")
 
-        is_python = server_script_path.endswith('.py')
-        is_js = server_script_path.endswith('.js')
-        if not (is_python or is_js):
-            raise ValueError("服务器脚本必须是 .py 或 .js 文件")
+        if not command or not isinstance(args, list):
+            print(f"❌ 配置 '{server_id}' 无效：缺少 'command' 或 'args'。跳过此服务器。")
+            return
+            
+        print(f"正在根据配置连接到服务器 '{server_id}'...")
+        print(f"  ▶️  Command: {command} {' '.join(args)}")
 
-        command = "python" if is_python else "node"
         server_params = StdioServerParameters(
             command=command,
-            args=[server_script_path],
+            args=args,
             env=None
         )
         
@@ -101,7 +92,8 @@ class MCPManager:
         except Exception as e:
             print(f"❌ 连接到 '{server_id}' 失败: {e}")
             await exit_stack.aclose()
-            raise
+            # 在 gather 中，一个任务的异常不会停止其他任务，所以这里只打印错误
+            # 如果需要一个失败就全部停止，则需要更复杂的处理
 
     def _get_all_tools_for_llm(self) -> list:
         """
@@ -128,7 +120,6 @@ class MCPManager:
         if not self.connections:
             return "错误：未连接到任何服务器。请先连接服务器。"
 
-        # 将当前用户查询添加到历史记录中
         self.messages.append({"role": "user", "content": query})
         available_tools = self._get_all_tools_for_llm()
 
@@ -138,21 +129,20 @@ class MCPManager:
                 "X-Title": os.getenv("YOUR_SITE_NAME", ""),
             },
             model="anthropic/claude-3.5-sonnet",
-            messages=self.messages, # 使用完整的历史记录
+            messages=self.messages,
             tools=available_tools,
             tool_choice="auto"
         )
 
         response_message = completion.choices[0].message
-        final_text = []
-
-        # 将模型的响应（包括思考过程和工具调用请求）添加到历史记录
         self.messages.append(response_message)
+        final_text = []
 
         if response_message.content:
             final_text.append(response_message.content)
 
         if response_message.tool_calls:
+            tool_results = []
             for tool_call in response_message.tool_calls:
                 unique_function_name = tool_call.function.name
                 
@@ -176,7 +166,6 @@ class MCPManager:
                     target_session = self.connections[server_id].session
                     result = await target_session.call_tool(original_function_name, function_args)
                     
-                    # 将工具执行结果添加到历史记录
                     self.messages.append({
                         "tool_call_id": tool_call.id,
                         "role": "tool",
@@ -193,13 +182,11 @@ class MCPManager:
                         "content": error_content,
                     })
 
-            # 第二次调用语言模型，此时 self.messages 已包含工具结果
             second_completion = self.client.chat.completions.create(
                 model="anthropic/claude-3.5-sonnet",
                 messages=self.messages,
             )
             final_response_message = second_completion.choices[0].message
-            # 将最终的文本响应添加到历史记录和输出中
             self.messages.append(final_response_message)
             final_text.append(final_response_message.content)
 
@@ -252,17 +239,39 @@ async def main():
     主函数，用于运行客户端。
     """
     if len(sys.argv) < 2:
-        print("用法: python client.py <path_to_server1> [<path_to_server2> ...]")
+        print("用法: python client.py <path_to_servers_config.json>")
+        sys.exit(1)
+
+    config_path = sys.argv[1]
+    if not os.path.exists(config_path):
+        print(f"错误：配置文件不存在于 '{config_path}'")
+        sys.exit(1)
+
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config_data = json.load(f)
+    except json.JSONDecodeError as e:
+        print(f"错误：解析 JSON 配置文件失败: {e}")
+        sys.exit(1)
+
+    server_configs = config_data.get("mcpServers", {})
+    if not server_configs:
+        print("警告：配置文件中未找到 'mcpServers' 或其为空。")
         sys.exit(1)
 
     manager = MCPManager()
-    server_scripts = sys.argv[1:]
     
-    connect_tasks = [manager.connect_to_server(script) for script in server_scripts]
-    await asyncio.gather(*connect_tasks, return_exceptions=True)
+    connect_tasks = []
+    for server_id, config in server_configs.items():
+        if config.get("disabled", False):
+            print(f"ℹ️ 服务器 '{server_id}' 已被禁用，跳过。")
+            continue
+        connect_tasks.append(manager.connect_to_server(server_id, config))
+
+    await asyncio.gather(*connect_tasks)
 
     if not manager.connections:
-        print("\n未能连接到任何服务器。正在退出。")
+        print("\n未能连接到任何服务器。请检查您的配置。正在退出。")
         sys.exit(1)
 
     try:

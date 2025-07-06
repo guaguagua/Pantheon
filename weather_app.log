@@ -37,3 +37,7 @@
 2025-07-06 23:10:50,520 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
 2025-07-06 23:10:50,520 - root - INFO - --- Starting get_forecast for lat=32.0, lon=-72.0 ---
 2025-07-06 23:10:54,320 - httpx - INFO - HTTP Request: GET https://api.weather.gov/points/32.0,-72.0 "HTTP/1.1 404 Not Found"
+2025-07-06 23:15:06,888 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2025-07-06 23:15:06,890 - mcp.server.lowlevel.server - INFO - Processing request of type ListResourcesRequest
+2025-07-06 23:15:06,891 - mcp.server.lowlevel.server - INFO - Processing request of type ListResourceTemplatesRequest
+2025-07-06 23:32:09,846 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
