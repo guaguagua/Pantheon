@@ -41,3 +41,4 @@
 2025-07-06 23:15:06,890 - mcp.server.lowlevel.server - INFO - Processing request of type ListResourcesRequest
 2025-07-06 23:15:06,891 - mcp.server.lowlevel.server - INFO - Processing request of type ListResourceTemplatesRequest
 2025-07-06 23:32:09,846 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2025-07-07 00:08:04,241 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest

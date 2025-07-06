@@ -117,11 +117,18 @@ class MCPManager:
         """
         处理用户查询，维护对话历史。
         """
-        if not self.connections:
-            return "错误：未连接到任何服务器。请先连接服务器。"
+        # 移除检查，允许在没有服务器连接的情况下继续，此时工具列表为空。
+        # if not self.connections:
+        #     return "错误：未连接到任何服务器。请先连接服务器。"
 
         self.messages.append({"role": "user", "content": query})
         available_tools = self._get_all_tools_for_llm()
+
+        # 如果没有可用的工具，则不向 LLM 发送 tools 参数
+        tool_kwargs = {}
+        if available_tools:
+            tool_kwargs['tools'] = available_tools
+            tool_kwargs['tool_choice'] = "auto"
 
         completion = self.client.chat.completions.create(
             extra_headers={
@@ -130,8 +137,7 @@ class MCPManager:
             },
             model="anthropic/claude-3.5-sonnet",
             messages=self.messages,
-            tools=available_tools,
-            tool_choice="auto"
+            **tool_kwargs
         )
 
         response_message = completion.choices[0].message
@@ -257,22 +263,26 @@ async def main():
     server_configs = config_data.get("mcpServers", {})
     if not server_configs:
         print("警告：配置文件中未找到 'mcpServers' 或其为空。")
-        sys.exit(1)
+        # 即使没有配置服务器，也允许继续，以便可以与 LLM 进行无工具聊天
+        # sys.exit(1)
 
     manager = MCPManager()
     
     connect_tasks = []
-    for server_id, config in server_configs.items():
-        if config.get("disabled", False):
-            print(f"ℹ️ 服务器 '{server_id}' 已被禁用，跳过。")
-            continue
-        connect_tasks.append(manager.connect_to_server(server_id, config))
+    if server_configs:
+        for server_id, config in server_configs.items():
+            if config.get("disabled", False):
+                print(f"ℹ️ 服务器 '{server_id}' 已被禁用，跳过。")
+                continue
+            connect_tasks.append(manager.connect_to_server(server_id, config))
+        
+        if connect_tasks:
+            await asyncio.gather(*connect_tasks)
 
-    await asyncio.gather(*connect_tasks)
-
+    # 修改此处：如果没有任何连接，只打印警告而不是退出。
     if not manager.connections:
-        print("\n未能连接到任何服务器。请检查您的配置。正在退出。")
-        sys.exit(1)
+        print("\n⚠️  未能连接到任何 MCP 服务器。将以无工具模式继续。")
+        # sys.exit(1) # <--- 已移除退出逻辑
 
     try:
         await chat_loop(manager)
