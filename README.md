@@ -11,5 +11,6 @@
 }
 ```
 
-2. 
+2.uv run mcp_client.py mcp_server.py  
+- make .env file to save key
 

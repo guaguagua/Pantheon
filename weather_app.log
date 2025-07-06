@@ -5,3 +5,15 @@
 2025-07-05 23:35:46,986 - root - INFO - --- Starting get_forecast for lat=40.7128, lon=-74.006 ---
 2025-07-05 23:35:51,586 - httpx - INFO - HTTP Request: GET https://api.weather.gov/points/40.7128,-74.006 "HTTP/1.1 200 OK"
 2025-07-05 23:35:54,554 - httpx - INFO - HTTP Request: GET https://api.weather.gov/gridpoints/OKX/33,35/forecast "HTTP/1.1 200 OK"
+2025-07-06 17:40:02,228 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2025-07-06 17:40:47,920 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2025-07-06 17:41:31,923 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2025-07-06 17:41:38,453 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2025-07-06 17:41:44,386 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2025-07-06 17:41:44,387 - root - INFO - --- Starting get_forecast for lat=32.533333, lon=-114.133333 ---
+2025-07-06 17:41:48,369 - httpx - INFO - HTTP Request: GET https://api.weather.gov/points/32.533333,-114.133333 "HTTP/1.1 301 Moved Permanently"
+2025-07-06 21:00:32,008 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2025-07-06 21:00:52,981 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2025-07-06 21:00:58,778 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2025-07-06 21:00:58,779 - root - INFO - --- Starting get_alerts NY ---
+2025-07-06 21:01:04,559 - httpx - INFO - HTTP Request: GET https://api.weather.gov/alerts/active/area/NY "HTTP/1.1 200 OK"
