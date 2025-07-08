@@ -17,6 +17,10 @@
       "args": [
         "./servers/weather/server.py"
       ]
+    },
+    "windows-cmd": {
+      "command": "node",
+      "args": ["D:\\tmp\\mcp_learn\\Windows-Command-Line-MCP-Server\\dist\\index.js","--allow-all"]
     }
   }
 }
