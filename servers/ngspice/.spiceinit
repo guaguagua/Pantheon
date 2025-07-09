@@ -1,0 +1,7 @@
+set ngbehavior=hs
+set ng_nomodcheck
+set color0=white
+set color1=black
+set xbrushwidth=2
+set wr_vecnames
+set wr_singlescale

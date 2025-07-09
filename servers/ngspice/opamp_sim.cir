@@ -1,0 +1,88 @@
+* Op-Amp Non-Inverting Amplifier Circuit for NGSpice Simulation
+* Filename: opamp_sim.cir
+
+.title Op-Amp Non-Inverting Amplifier Analysis
+
+* Include model file at the beginning
+.include opamp_models.lib
+
+* Circuit Parameters
+.param vcc=15
+.param vee=-15
+.param rf=10k
+.param ri=1k
+
+* Power supplies
+Vcc vcc 0 DC {vcc}
+Vee vee 0 DC {vee}
+
+* Input signal for transient analysis
+Vin vin 0 DC 0 AC 1 SIN(0 1 1k 0 0)
+
+* Simplified op-amp model
+.subckt ideal_opamp vp vn vcc vee vout
+Rin vp vn 1Meg
+Eamp vout_int 0 vp vn 100000
+Rout vout_int vout 75
+Cout vout 0 10p
+.ends
+
+* Main circuit components
+X1 vp vn vcc vee vout ideal_opamp
+R1 0 vn {ri}
+R2 vn vout {rf}
+Rload vout 0 10k
+Rsource vin vp 50
+
+* Analysis Control Block
+.control
+
+echo "=== Op-Amp Circuit Simulation Started ==="
+
+* Operating Point Analysis
+op
+print v(vp) v(vn) v(vout)
+
+* Transient Analysis
+echo "Running Transient Analysis..."
+tran 10u 5m
+wrdata tran_data.txt v(vin) v(vout)
+
+* Measurements for transient analysis
+meas tran vout_max max v(vout)
+meas tran vout_min min v(vout) 
+meas tran vout_pp pp v(vout)
+meas tran vin_rms rms v(vin)
+meas tran vout_rms rms v(vout)
+
+echo "Transient Analysis Results:"
+print vout_max vout_min vout_pp vin_rms vout_rms
+
+* AC Analysis
+echo "Running AC Analysis..."
+ac dec 50 1 1Meg
+let gain_db = db(v(vout)/v(vin))
+let phase_deg = ph(v(vout)/v(vin))*180/pi
+wrdata ac_data.txt frequency gain_db phase_deg
+
+* AC Measurements
+meas ac gain_dc find gain_db at=1
+meas ac gain_1k find gain_db at=1000
+meas ac f_3db when gain_db={gain_dc-3}
+
+echo "AC Analysis Results:"
+print gain_dc gain_1k f_3db
+
+* Performance calculations
+let theoretical_gain = 1 + {rf}/{ri}
+let measured_gain = vout_rms/vin_rms
+
+echo "Performance Summary:"
+echo "Theoretical gain:" theoretical_gain
+echo "Measured gain:" measured_gain
+
+echo "=== Simulation Completed Successfully ==="
+
+.endc
+
+.end

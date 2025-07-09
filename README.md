@@ -31,3 +31,7 @@ new-item weather.py
 
 4. mcp command server
 - https://glama.ai/mcp/servers/@alxspiker/Windows-Command-Line-MCP-Server?locale=zh-CN
+  - git clone https://github.com/alxspiker/Windows-Command-Line-MCP-Server.git
+  - cd Windows-Command-Line-MCP-Server
+  - npm install
+  - npm run build
