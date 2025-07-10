@@ -35,3 +35,12 @@ new-item weather.py
   - cd Windows-Command-Line-MCP-Server
   - npm install
   - npm run build
+
+5. promote
+- 执行 bat脚本的方式
+  -  调用服务器 'windows-cmd' 的工具 execute_command，参数: {"command": "run.bat", "workingDir": "D:\\tmp\\mcp_learn\\weather\\servers\\ngspice"}
+- 操作系统
+- example
+  - 命令执行
+
+  
