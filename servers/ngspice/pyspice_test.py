@@ -83,7 +83,8 @@ def test_dc_sweep():
     
     # 修复DeprecationWarning - 遍历数组元素
     for i in range(len(analysis.Vsupply)):
-        vin = analysis.Vsupply[i]
+        # vin = analysis.Vsupply[i]
+        vin = analysis['vin'][i]
         vout = analysis['n1'][i]
         print(f"{float(vin):8.1f} -> {float(vout):8.3f}")
     
